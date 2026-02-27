@@ -132,7 +132,7 @@ def timer(description: str = "操作"):
     start = time.time()
     yield
     elapsed = time.time() - start
-    print(f"{Fore.DIM}{description} 耗时：{elapsed:.2f}秒{Style.RESET_ALL}")
+    print(f"{Style.DIM}{description} 耗时：{elapsed:.2f}秒{Style.RESET_ALL}")
 
 
 def retry(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
@@ -587,15 +587,15 @@ class TVRenamer:
         # 打印预览表格
         if changes:
             print(f"\n{Fore.WHITE}{Style.BRIGHT}重命名预览:{Style.RESET_ALL}")
-            print(f"{Fore.DIM}{'原始文件名':<50} → {'新文件名':<30}{Style.RESET_ALL}")
-            print(f"{Fore.DIM}{'─' * 85}{Style.RESET_ALL}")
+            print(f"{Style.DIM}{'原始文件名':<50} → {'新文件名':<30}{Style.RESET_ALL}")
+            print(f"{Style.DIM}{'─' * 85}{Style.RESET_ALL}")
             
             for old_name, new_name in changes[:20]:  # 最多显示 20 个
                 old_display = old_name[:47] + "..." if len(old_name) > 50 else old_name
                 print(f"{old_display:<50} {Fore.YELLOW}→{Style.RESET_ALL} {Fore.GREEN}{new_name}{Style.RESET_ALL}")
             
             if len(changes) > 20:
-                print(f"{Fore.DIM}  ... 还有 {len(changes) - 20} 个文件{Style.RESET_ALL}")
+                print(f"{Style.DIM}  ... 还有 {len(changes) - 20} 个文件{Style.RESET_ALL}")
         
         # 显示无法识别的文件
         if unparseable and self.verbose:
