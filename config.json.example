@@ -2,7 +2,11 @@
   "storage_type": "alist",
   "alist": {
     "base_url": "http://localhost:5244",
-    "token": "your-token-here",
+    // 方式 1：用户名 + 密码（推荐，自动获取 token）
+    "username": "admin",
+    "password": "your-password",
+    // 方式 2：直接使用 token（二选一）
+    // "token": "your-token-here",
     "root_path": "/"
   },
   "name_template": "S{season:02d}E{episode:02d}",

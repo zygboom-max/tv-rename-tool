@@ -226,19 +226,62 @@ class BaseStorage(ABC):
 class AlistStorage(BaseStorage):
     """Alist / OpenList 存储后端"""
     
-    def __init__(self, base_url: str, token: str, root_path: str = "/"):
+    def __init__(self, base_url: str, token: str = None, username: str = None, password: str = None, root_path: str = "/"):
         super().__init__(root_path)
         self.base_url = base_url.rstrip("/")
-        self.token = token
-        self.headers = {
-            "Authorization": token,
-            "Content-Type": "application/json"
-        }
+        self.root_path = root_path
+        
+        # 支持两种认证方式：token 或 用户名密码
+        if token:
+            self.token = token
+            self.headers = {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            }
+        elif username and password:
+            self.token = None
+            self.username = username
+            self.password = password
+            self.headers = {
+                "Content-Type": "application/json"
+            }
+        else:
+            raise ValueError("Alist 需要提供 token 或 用户名密码")
         
         if not base_url:
             raise ValueError("Alist base_url 不能为空")
-        if not token:
-            raise ValueError("Alist token 不能为空")
+    
+    def login(self) -> bool:
+        """使用用户名密码登录获取 token"""
+        import requests
+        
+        if self.token:
+            return True
+        
+        url = f"{self.base_url}/api/auth/login"
+        payload = {
+            "username": self.username,
+            "password": self.password
+        }
+        
+        try:
+            logger.debug(f"登录 Alist: {url}")
+            resp = requests.post(url, json=payload, headers=self.headers, timeout=self.request_timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            
+            if data.get("code") == 200:
+                self.token = data.get("data", {}).get("token", "")
+                if self.token:
+                    self.headers["Authorization"] = self.token
+                    logger.info("登录成功，已获取 token")
+                    return True
+            
+            logger.error(f"登录失败：{data.get('message', '未知错误')}")
+            return False
+        except Exception as e:
+            logger.error(f"登录错误：{e}")
+            return False
     
     @retry(max_attempts=3, delay=1.0)
     def list_folders(self, path: str) -> List[Dict]:
@@ -741,8 +784,18 @@ def create_storage(config: Dict) -> BaseStorage:
             storage = AlistStorage(
                 base_url=alist_config.get("base_url", "http://localhost:5244"),
                 token=alist_config.get("token", ""),
+                username=alist_config.get("username", ""),
+                password=alist_config.get("password", ""),
                 root_path=alist_config.get("root_path", "/")
             )
+            
+            # 如果是用户名密码登录，先登录获取 token
+            if not storage.token:
+                print_info("使用用户名密码登录...")
+                if not storage.login():
+                    print_error("登录失败，请检查用户名和密码")
+                    raise ValueError("Alist 登录失败")
+            
             print_success("已连接 Alist / OpenList")
             return storage
         except ValueError as e:
@@ -771,6 +824,17 @@ def create_storage(config: Dict) -> BaseStorage:
 # 交互式配置向导
 # ─────────────────────────────────────────────────────────────
 
+def getpass(prompt: str) -> str:
+    """安全获取密码输入"""
+    try:
+        import getpass
+        return getpass.getpass(prompt)
+    except:
+        # 回退到普通输入
+        print(prompt, end='')
+        return input().strip()
+
+
 def interactive_setup() -> Dict:
     """交互式配置向导"""
     print_section("配置向导")
@@ -794,22 +858,53 @@ def interactive_setup() -> Dict:
     if storage_type == 'alist':
         print("\n请输入 Alist 配置:")
         base_url = input(f"  服务地址 (默认：http://localhost:5244): ").strip() or "http://localhost:5244"
-        token = input(f"  Token: ").strip()
         
-        if not token:
-            print_error("Token 不能为空")
-            return None
+        # 选择认证方式
+        print(f"\n  认证方式:")
+        print(f"    {Fore.BLUE}[1]{Style.RESET_ALL} 用户名 + 密码 (推荐)")
+        print(f"    {Fore.BLUE}[2]{Style.RESET_ALL} Token")
         
-        config = {
-            "storage_type": "alist",
-            "alist": {
-                "base_url": base_url,
-                "token": token,
-                "root_path": "/"
+        auth_choice = input(f"\n  选择 [1/2] (默认：1): {Style.RESET_ALL}").strip() or "1"
+        
+        if auth_choice == '2':
+            # 使用 Token
+            token = input(f"  Token: ").strip()
+            if not token:
+                print_error("Token 不能为空")
+                return None
+            
+            config = {
+                "storage_type": "alist",
+                "alist": {
+                    "base_url": base_url,
+                    "token": token,
+                    "root_path": "/"
+                }
             }
-        }
+        else:
+            # 使用用户名密码
+            username = input(f"  用户名: ").strip()
+            if not username:
+                print_error("用户名不能为空")
+                return None
+            
+            password = getpass(f"  密码：")
+            if not password:
+                print_error("密码不能为空")
+                return None
+            
+            config = {
+                "storage_type": "alist",
+                "alist": {
+                    "base_url": base_url,
+                    "username": username,
+                    "password": password,
+                    "root_path": "/"
+                }
+            }
     else:
         print("\n请输入百度网盘配置:")
+        print(f"  {Fore.YELLOW}⚠ 百度网盘需要 Access Token，请前往开放平台获取{Style.RESET_ALL}")
         access_token = input(f"  Access Token: ").strip()
         
         if not access_token:
@@ -852,7 +947,9 @@ def main():
     need_setup = False
     
     if storage_type == "alist":
-        if not config.get("alist", {}).get("token"):
+        alist_config = config.get("alist", {})
+        # 需要 token 或 用户名密码
+        if not alist_config.get("token") and not (alist_config.get("username") and alist_config.get("password")):
             need_setup = True
     else:
         if not config.get("baidu", {}).get("access_token"):
