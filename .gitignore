@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+venv/
+
+# 测试文件
+test_tv/
+test_local.py
+test_rename.js
+
+# 压缩包
+*.tar.gz
+*.zip
+
+# 配置文件（包含敏感信息）
+config.json
+
+# OpenClaw 系统文件
+.openclaw/
+memory/
+
+# 其他
+*.log
+.DS_Store
