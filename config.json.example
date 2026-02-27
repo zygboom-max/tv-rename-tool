@@ -1,0 +1,12 @@
+{
+  "storage_type": "alist",
+  "alist": {
+    "base_url": "http://localhost:5244",
+    "token": "your-token-here",
+    "root_path": "/"
+  },
+  "name_template": "S{season:02d}E{episode:02d}",
+  "dry_run": true,
+  "verbose": false,
+  "interactive": true
+}
