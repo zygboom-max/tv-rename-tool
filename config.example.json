@@ -1,0 +1,15 @@
+{
+  "storage_type": "alist",
+  "alist": {
+    "base_url": "http://localhost:5244",
+    "token": "alist-xxxxxx",
+    "root_path": "/电视剧"
+  },
+  "baidu": {
+    "access_token": "your-access-token-here",
+    "root_path": "/电视剧"
+  },
+  "name_template": "S{season:02d}E{episode:02d}",
+  "dry_run": true,
+  "verbose": false
+}
